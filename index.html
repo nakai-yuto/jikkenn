@@ -1,0 +1,316 @@
+
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>卒業研究 実験システム</title>
+
+<style>
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: sans-serif;
+  background: #f4f4f4;
+  color: #222;
+}
+
+.screen {
+  display: none;
+  min-height: 100vh;
+  padding: 30px;
+}
+
+.active {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+h1 {
+  font-size: 28px;
+}
+
+button {
+  padding: 14px 32px;
+  font-size: 18px;
+  cursor: pointer;
+  border: none;
+  border-radius: 6px;
+  background: #2563eb;
+  color: white;
+  margin: 10px;
+}
+
+button:disabled {
+  background: #aaa;
+  cursor: not-allowed;
+}
+
+input, textarea {
+  width: min(600px, 90%);
+  padding: 14px;
+  font-size: 18px;
+  margin: 15px;
+}
+
+#experiment {
+  position: relative;
+  width: 100%;
+  height: 100vh;
+  padding: 0;
+  overflow: hidden;
+  justify-content: center;
+}
+
+#stimulus {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  background: black;
+}
+
+#progress {
+  position: absolute;
+  top: 15px;
+  z-index: 2;
+  color: white;
+  background: rgba(0,0,0,0.6);
+  padding: 8px 15px;
+  border-radius: 5px;
+}
+
+#question {
+  position: absolute;
+  bottom: 190px;
+  z-index: 2;
+  color: white;
+  background: rgba(0,0,0,0.7);
+  padding: 10px;
+}
+
+#answer {
+  position: absolute;
+  bottom: 65px;
+  z-index: 2;
+  height: 100px;
+  background: white;
+}
+
+#nextButton {
+  position: absolute;
+  bottom: 10px;
+  z-index: 3;
+}
+</style>
+</head>
+
+<body>
+
+<!-- 開始画面 -->
+<section id="start" class="screen active">
+  <h1>実験へのご協力ありがとうございます</h1>
+  <p>学籍番号を入力してください。</p>
+
+  <input id="participant"
+         type="text"
+         placeholder="例：P001">
+
+  <p>準備ができたら実験を開始してください。</p>
+
+  <button onclick="startExperiment()">
+    実験開始
+  </button>
+</section>
+
+<!-- 実験画面 -->
+<section id="experiment" class="screen">
+
+  <div id="progress"></div>
+
+  <img id="stimulus" src="" alt="実験画像">
+
+  <div id="question">
+    中央の人型のモデルは何メートルに感じますか？
+  </div>
+
+  <textarea id="answer"
+    placeholder="こちらに回答を入力してください。"></textarea>
+
+  <div id="message"></div>
+
+  <button id="nextButton" onclick="nextTrial()">
+    次へ
+  </button>
+
+</section>
+
+<!-- 終了画面 -->
+<section id="finish" class="screen">
+  <h1>実験終了</h1>
+  <p>ご協力ありがとうございました。</p>
+
+  <button onclick="downloadCSV()">
+    回答データをCSVで保存
+  </button>
+</section>
+
+<script>
+
+// 提示する画像を設定
+// conditionには実験条件を記入
+
+const trials = [
+  { file: "横断なし電柱15.png", condition: "近距離" },
+  { file: "横断有電柱10.png", condition: "中距離" },
+  { file: "横断有電柱15.png", condition: "遠距離" }
+];
+
+let participantID = "";
+let currentTrial = 0;
+let answers = [];
+let trialStartTime = 0;
+
+function showScreen(id) {
+  document.querySelectorAll(".screen").forEach(s => {
+    s.classList.remove("active");
+  });
+  document.getElementById(id).classList.add("active");
+}
+
+function startExperiment() {
+  participantID =
+    document.getElementById("participant").value.trim();
+
+  if (!participantID) {
+    alert("参加者IDを入力してください。");
+    return;
+  }
+
+  if (localStorage.getItem("experiment_" + participantID)) {
+    alert("この参加者IDは既に使用されています。別のIDを入力してください。");
+    return;
+  }
+
+  answers = [];
+  currentTrial = 0;
+
+  // ブラウザを全画面表示
+  document.documentElement.requestFullscreen?.()
+    .catch(() => {});
+
+  showScreen("experiment");
+  showTrial();
+}
+
+function showTrial() {
+  const trial = trials[currentTrial];
+
+  document.getElementById("progress").textContent =
+    "試行 " + (currentTrial + 1) + " / " + trials.length;
+
+  document.getElementById("stimulus").src =
+    "images/" + trial.file;
+
+  document.getElementById("answer").value = "";
+
+  document.getElementById("message").textContent = "";
+
+  document.getElementById("nextButton").textContent =
+    currentTrial === trials.length - 1
+      ? "実験終了"
+      : "次へ";
+
+  trialStartTime = Date.now();
+}
+
+function nextTrial() {
+  const response =
+    document.getElementById("answer").value.trim();
+
+  if (!response) {
+    document.getElementById("message").textContent =
+      "回答を入力してください。";
+    return;
+  }
+
+  const trial = trials[currentTrial];
+  const endTime = Date.now();
+
+  answers.push({
+    participant: participantID,
+    trial: currentTrial + 1,
+    image: trial.file,
+    condition: trial.condition,
+    response: response,
+    responseTime: endTime - trialStartTime,
+    timestamp: new Date().toISOString()
+  });
+
+  // 回答をブラウザ内にも保存
+  localStorage.setItem(
+    "experiment_" + participantID,
+    JSON.stringify(answers)
+  );
+
+  currentTrial++;
+
+  if (currentTrial < trials.length) {
+    showTrial();
+  } else {
+    showScreen("finish");
+    document.exitFullscreen?.().catch(() => {});
+  }
+}
+
+function downloadCSV() {
+  const header = [
+    "参加者ID",
+    "試行番号",
+    "画像名",
+    "実験条件",
+    "自由記述回答",
+    "回答時間(ms)",
+    "回答日時"
+  ];
+
+  const rows = answers.map(a => [
+    a.participant,
+    a.trial,
+    a.image,
+    a.condition,
+    a.response,
+    a.responseTime,
+    a.timestamp
+  ]);
+
+  const csv = [header, ...rows]
+    .map(row => row.map(value =>
+      '"' + String(value).replace(/"/g, '""') + '"'
+    ).join(","))
+    .join("\r\n");
+
+  // Excelで日本語を読みやすくするためのBOM
+  const blob = new Blob(
+    ["\uFEFF" + csv],
+    { type: "text/csv;charset=utf-8;" }
+  );
+
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+
+  link.href = url;
+  link.download = participantID + "_results.csv";
+  link.click();
+
+  URL.revokeObjectURL(url);
+}
+
+</script>
+</body>
+</html>
