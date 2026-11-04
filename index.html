@@ -136,11 +136,11 @@ input, textarea {
   <img id="stimulus" src="" alt="実験画像">
 
   <div id="question">
-    中央の人型のモデルは何メートルに感じますか？
+    中央の人型のモデルは何メートルに感じますか？また、参考になった建造物などの要因があれば記述してください
   </div>
 
   <textarea id="answer"
-    placeholder="こちらに回答を入力してください。"></textarea>
+    placeholder="こちらに回答を入力してください。例〇〇m"></textarea>
 
   <div id="message"></div>
 
@@ -166,9 +166,18 @@ input, textarea {
 // conditionには実験条件を記入
 
 const trials = [
-  { file: "横断なし電柱15.png", condition: "近距離" },
-  { file: "横断有電柱10.png", condition: "中距離" },
-  { file: "横断有電柱15.png", condition: "遠距離" }
+  { file: "60 10 19.png", condition: "近距離" },
+  { file: "60 10 31.png", condition: "中距離" },
+  { file: "60 10 44.png", condition: "遠距離" },
+  { file: "70 10 15.png", condition: "近距離" },
+  { file: "70 10 32.png", condition: "中距離" },
+  { file: "70 10 47.png", condition: "遠距離" },
+  { file: "60 15 25.png", condition: "近距離" },
+  { file: "60 15 38.png", condition: "中距離" },
+  { file: "60 15 49.png", condition: "遠距離" },
+  { file: "70 15 17.png", condition: "近距離" },
+  { file: "70 15 29.png", condition: "中距離" },
+  { file: "70 15 43.png", condition: "遠距離" },
 ];
 
 let participantID = "";
@@ -188,12 +197,7 @@ function startExperiment() {
     document.getElementById("participant").value.trim();
 
   if (!participantID) {
-    alert("参加者IDを入力してください。");
-    return;
-  }
-
-  if (localStorage.getItem("experiment_" + participantID)) {
-    alert("この参加者IDは既に使用されています。別のIDを入力してください。");
+    alert("学籍番号を入力してください。");
     return;
   }
 
